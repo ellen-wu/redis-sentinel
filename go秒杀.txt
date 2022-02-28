@@ -1,0 +1,58 @@
+
+https://www.rabbitmq.com/releases/
+
+https://github.com/rabbitmq/erlang-rpm/releases
+
+wget https://github.com/rabbitmq/erlang-rpm/releases/download/v23.1.1/erlang-23.1.1-1.el7.x86_64.rpm
+wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.8.9/rabbitmq-server-3.8.9-1.el7.noarch.rpm
+
+
+rabbitmq-plugins list
+
+# 启动web管理界面
+rabbitmq-plugins enable rabbitmq_management
+# 禁用插件
+rabbitmq-plugins disable rabbitmq_management
+
+
+
+
+
+
+import (
+        "testing"
+        "github.com/go-redis/redis"
+        "github.com/alicebob/miniredis"
+        "github.com/elliotchance/redismock"
+        "errors"
+        "github.com/stretchr/testify/assert"
+)
+// newTestRedis returns a redis.Cmdable.
+func newTestRedis() *redismock.ClientMock {
+        mr, err := miniredis.Run()
+        if err != nil {
+                panic(err)
+        }
+        client := redis.NewClient(&redis.Options{
+                Addr: mr.Addr(),
+        })
+        return redismock.NewNiceMock(client)
+}
+// This would be your production code.
+func RedisIsAvailable(client redis.Cmdable) bool {
+        return client.Ping().Err() == nil
+}
+// Test Redis is down.
+func TestRedisCannotBePinged(t *testing.T) {
+        r := newTestRedis()
+        r.On("Ping").
+                Return(redis.NewStatusResult("", errors.New("server not available")))
+        assert.False(t, RedisIsAvailable(r))
+}
+
+
+
+
+
+
+

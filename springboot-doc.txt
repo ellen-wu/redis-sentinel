@@ -1,0 +1,206 @@
+1、环境搭建
+    maven
+        <!-- 所有的springboot工程都必须继承 spring-boot-starter-parent -->
+        <!-- https://docs.spring.io/spring-boot/docs/current/maven-plugin/reference/html/ -->
+        <parent>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-parent</artifactId>
+            <version>2.3.4.RELEASE</version>
+        </parent>
+
+        <dependencies>
+            <!-- web功能的起步依赖 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+            </dependency>
+        </dependencies>
+
+    引导类的编写 SpringApplication.run(MySpringBootApplication.class); 记得加标注@SpringBootApplication
+        // 标注 表明这是一个springboot的引导类 入口文件
+        @SpringBootApplication
+        public class MySpringBootApplication {
+            public static void main(String[] args) {
+                // run方法 表明要运行springboot的引导 run方法的参数就是springboot引导类的字节码对象
+                SpringApplication.run(MySpringBootApplication.class);
+            }
+        }
+
+    新建一个controller
+        @Controller
+        public class QuickController {
+
+            @RequestMapping("/quick")
+            @ResponseBody
+            public String quick() {
+                return "hello springboot!";
+            }
+        }
+
+开发中的热部署
+    <!-- 开发中的热部署 -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-devtools</artifactId>
+    </dependency>
+
+    如果使用idea，它默认不支持自动编译
+        Setting -> Compiler -> 勾选 Build project automatically
+
+        回到主界面后 Ctrl + Shift + Alt + /  点击 Registry
+            找到 compiler.automake.allow.when.app.running 勾选上
+
+
+可以通过idea快速的创建springboot，新建工程，Spring Initializr(Maven之上)
+
+
+
+配置文件
+    application.properties
+    或 application.yml(application.yaml)
+
+    在resources下
+
+获取配置文件的属性
+    使用注解@Value
+        @Value("${keyName}")
+        @Value("${keyName.subName}")
+
+    @ConfigurationProperties(prefix = "person")
+
+
+mybatis
+    pom.xml
+        <!-- mybatis -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>2.1.3</version>
+        </dependency>
+        <!-- mysql数据库驱动 -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+
+    application.properties
+        spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+        spring.datasource.url=jdbc:mysql://localhost:3306/mybatislearn?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+        spring.datasource.username=root
+        spring.datasource.password=
+
+springboot几个注解
+    @SpringBootApplication 相当于 @EnableAutoConfiguration @ComponentScan @EnableAutoConfiguration 的组合
+
+
+springboot的四种属性注入
+    1、@Autowired注入
+    2、构造方法注入
+    3、@Bean方法形参注入
+    4、直接在@Bean方法上使用@ConfigurationProperties(prefix = "jdbc")
+
+
+访问静态资源
+    位于 resources/static/ 目录下
+        假如有图片 resources/static/images/test.jpg
+            访问地址: http://localhost:8080/images/test.jpg
+
+
+idea
+    ctrl + i 快速实现interface的方法
+
+
+mybatis.type-aliases-package=com.learn.dao.pojo
+mybatis.mapper-locations=classpath:mybatis/mapper/**/*.xml
+
+
+
+手动调出Rundashboard 修改项目 .idea/workspace.xml 增加组件
+    <component name="RunDashboard">
+        <option name="ruleStates">
+            <list>
+                <RuleState>
+                    <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+                </RuleState>
+                <RuleState>
+                    <option name="name" value="StatusDashboardGroupingRule" />
+                </RuleState>
+            </list>
+        </option>
+        <option name="contentProportion" value="0.22874807" />
+        <option name="configurationTypes">
+            <set>
+                <option value="SpringBootApplicationConfigurationType" />
+            </set>
+        </option>
+    </component>
+
+
+  #server:
+  #  eviction-interval-timer-in-ms: 5000 # 剔除无效链接的间隔时间
+  #  enable-self-preservation: false # 关闭自我保护状态
+  #instance:
+  #  lease-renewal-interval-in-seconds: 5 # 心跳时间
+  #  lease-expiration-duration-in-seconds: 15 # 过期时间
+
+
+
+
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+            <exclusions>
+                <!-- 排除xml依赖 -->
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>jackson-dataformat-xml</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+
+配置ribbon hystrix feign都在调用方
+
+springcould配置组件
+    1、引入启动器
+    2、覆盖默认配置
+    3、在引导类启用组件
+
+Hystrix解决雪崩问题的手段有两个
+    线程隔离
+    服务熔断
+
+触发hystrix服务降级的情况
+    线程池已满
+    请求超时
+
+注意：hystrix默认的超时时长为1s，生产环境因为网络等问题可能不会那么快完成调用，所以应该修改配置
+    hystrix:
+      command:
+        default:
+          execution:
+            isolation:
+              thread:
+                timeoutInMilliseconds: 6000 # 设置hystrix的超时时间为6000ms
+
+
+hystrix服务熔断
+    熔断状态
+        Closed: 关闭状态，所有请求都正常访问
+        Open: 打来状态，所有请求都被降级
+        Half Open: 半开，Open状态不是永久的，打开后会进入休眠时间（默认是5s）。随后断路器会自动进入半开状态。
+
+
+
+spring任务调度
+    创建任务类 类上加注解@Component
+        在需要任务调度的方法上加上@Scheduled注解
+    在引导类中加上@EnableScheduling 注解
+
+    @Scheduled(cron="0/3 * * * * *") // 每隔三秒执行
+    @Scheduled(fixedRate = 3000) // 在任务开始后3秒执行下一次调度
+    @Scheduled(fiexedDelay = 3000) // 在任务结束后3秒才开始执行
+
+
+

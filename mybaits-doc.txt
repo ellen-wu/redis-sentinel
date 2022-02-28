@@ -1,0 +1,69 @@
+ieda 配置maven runner 如果本地仓库存在，不下载
+-DarchetypeCatalog=internal
+
+
+https://mybatis.org/mybatis-3/zh/getting-started.html
+
+
+
+
+
+OGNL表达式：
+    Object Graphic Navigation Language
+    对象    图    导航       语言
+    
+    它是通过对象的取值方法来获取数据。在写法上把get给省略了。
+    比如：我们获取用户的名称
+        类中的写法：user.getUsername();
+        OGNL表达式写法：user.username
+    mybatis中为什么能直接写username,而不用user.呢：
+        因为在parameterType中已经提供了属性所属的类，所以此时不需要写对象名
+
+
+
+如果实体类与数据库字段不对应时
+    可以sql语句起别名
+    也可以在xml中配置实体类与数据库字段的对应关系
+    userId -> id  userName -> username
+    
+        <resultMap id="userMap" type="day02.learn.domain.User">
+            <!-- 主键字段的对应关系 -->
+            <id property="userId" column="id"></id>
+            <!-- 非主键字段的对应关系 -->
+            <result property="userName" column="username"></result>
+        </resultMap>
+        
+        <select id="findAll" resultMap="userMap">
+            select * from user
+        </select>
+
+
+mybatis中的连接池
+    3种方式的配置
+        配置位置
+            主配置文件SqlMapConfig.xml中的dataSource标签，type属性就表示使用何种连接池
+
+        type属性的取值
+            POOLED: 采用传统的javax.sql.DataSource规范中的连接池，mybatis中有针对规范的实现
+            UNPOOLED: 采用传统的连接方式，虽然也实现了javax.sql.DataSource接口，但并没有使用池的思想
+            JNDI: 采用服务器提供的JNDI技术实现，来获取DataSource对象，不同的服务器所能拿到的DataSource是不一样的
+                注意：如果不是web或者maven的war工程，是不能使用的
+
+
+自动提交事务
+    factory.openSession(true);
+
+
+
+解决：idea target bytecode version
+    https://youtrack.jetbrains.com/v2/issue/IDEA-185979
+
+    -Didea.maven.disable.MavenCompilerConfigurer=true
+    -Didea.maven.configure.language.level=false
+
+
+
+GOOS=linux GOARCH=amd64 go build main.go
+
+ieda 配置maven runner 如果本地仓库存在，不下载
+-DarchetypeCatalog=internal

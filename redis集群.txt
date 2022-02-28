@@ -1,0 +1,399 @@
+redis sentinel (哨兵模式的集群)
+
+    有三台服务器
+        主: 192.168.88.129
+        从: 192.168.88.130
+        从: 192.168.88.131
+
+    setenforce 0
+    systemctl stop firewalld
+
+    cd cd /usr/local/redis/
+    mkdir conf data log
+
+
+    配置redis
+        192.168.88.129
+            redis 6379配置 master conf/6379.conf
+                port 6379
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_6379.pid
+                logfile "/usr/local/redis/log/6379.log"
+                dbfilename dump-6379.rdb
+                dir /usr/local/redis/data
+
+
+        192.168.88.130
+            redis 6380配置 master conf/6380.conf
+                port 6380
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_6380.pid
+                logfile "/usr/local/redis/log/6380.log"
+                dbfilename dump-6380.rdb
+                dir /usr/local/redis/data
+                slaveof 192.168.88.129 6379
+
+
+            redis 6381配置 master conf/6381.conf
+                port 6381
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_6381.pid
+                logfile "/usr/local/redis/log/6381.log"
+                dbfilename dump-6381.rdb
+                dir /usr/local/redis/data
+                slaveof 192.168.88.129 6379
+
+
+        192.168.88.131
+            redis 6382配置 master conf/6382.conf
+                port 6382
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_6382.pid
+                logfile "/usr/local/redis/log/6382.log"
+                dbfilename dump-6382.rdb
+                dir /usr/local/redis/data
+                slaveof 192.168.88.129 6379
+
+
+            redis 6381配置 master conf/6383.conf
+                port 6383
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_6383.pid
+                logfile "/usr/local/redis/log/6383.log"
+                dbfilename dump-6383.rdb
+                dir /usr/local/redis/data
+                slaveof 192.168.88.129 6379
+
+
+    启动redis
+        192.168.88.129
+            /usr/local/redis/bin/redis-server /usr/local/redis/conf/6379.conf
+
+        192.168.88.130
+            /usr/local/redis/bin/redis-server /usr/local/redis/conf/6380.conf
+            /usr/local/redis/bin/redis-server /usr/local/redis/conf/6381.conf
+
+        192.168.88.131
+            /usr/local/redis/bin/redis-server /usr/local/redis/conf/6382.conf
+            /usr/local/redis/bin/redis-server /usr/local/redis/conf/6383.conf
+
+    查看信息
+        /usr/local/redis/bin/redis-cli -p 6379 info replication
+
+
+    sentinel配置
+        192.168.88.129  conf/sentinel-26379.conf
+            port 26379
+            daemonize yes
+            pidfile /var/run/redis-sentinel-26379.pid
+            logfile "/usr/local/redis/log/sentinel-26379.log"
+            dir /usr/local/redis/data
+            sentinel monitor redis-master-test 192.168.88.129 6379 2
+            sentinel down-after-milliseconds redis-master-test 30000
+            sentinel parallel-syncs redis-master-test 1
+            sentinel failover-timeout redis-master-test 180000
+            sentinel deny-scripts-reconfig yes
+
+        192.168.88.130  conf/sentinel-26380.conf
+            port 26380
+            daemonize yes
+            pidfile /var/run/redis-sentinel-26380.pid
+            logfile "/usr/local/redis/log/sentinel-26380.log"
+            dir /usr/local/redis/data
+            sentinel monitor redis-master-test 192.168.88.129 6379 2
+            sentinel down-after-milliseconds redis-master-test 30000
+            sentinel parallel-syncs redis-master-test 1
+            sentinel failover-timeout redis-master-test 180000
+            sentinel deny-scripts-reconfig yes
+
+
+        192.168.88.131  conf/sentinel-26381.conf
+            port 26381
+            daemonize yes
+            pidfile /var/run/redis-sentinel-26381.pid
+            logfile "/usr/local/redis/log/sentinel-26381.log"
+            dir /usr/local/redis/data
+            sentinel monitor redis-master-test 192.168.88.129 6379 2
+            sentinel down-after-milliseconds redis-master-test 30000
+            sentinel parallel-syncs redis-master-test 1
+            sentinel failover-timeout redis-master-test 180000
+            sentinel deny-scripts-reconfig yes
+
+
+    启动sentinel
+        192.168.88.129
+            /usr/local/redis/bin/redis-sentinel /usr/local/redis/conf/sentinel-26379.conf 
+        192.168.88.130
+            /usr/local/redis/bin/redis-sentinel /usr/local/redis/conf/sentinel-26380.conf 
+        192.168.88.131
+            /usr/local/redis/bin/redis-sentinel /usr/local/redis/conf/sentinel-26381.conf
+
+
+    cli运行php 然后 模拟主redis 下线
+    php test.php
+
+
+
+
+redis cluster 集群
+    生产中使用官方提供的ruby脚本
+    
+    1、修改redis配置文件
+    2、启动redis
+        redis-server redis.conf
+    3、meet
+        redis-cli -p 6379 cluster meet 192.168.88.129 6380
+        ...
+    4、分配插槽
+        redis-cli -p 6379 cluster addslots 0
+
+        需要使用shell脚本
+            #!/bin/bash
+            # redis addslots
+
+            start=$1
+            end=$2
+            ip=$3
+            port=$4
+
+            for slot in `seq ${start} ${end}`
+            do
+                echo "slot: ${slot}"
+                /usr/local/redis/bin/redis-cli -h ${ip} -p ${port} cluster addslots ${slot}
+            done
+
+    5、主从的分配
+        redis-cli -p 6380 cluster replication 6379的节点id
+
+
+    16384个插槽，需要分派到集群中
+        0 - 5460
+        5461 - 10921
+        10922 - 16383
+
+    有三台服务器
+        192.168.88.129
+        192.168.88.130
+        192.168.88.131
+
+
+    配置redis
+        192.168.88.129
+            redis 6379配置 master conf/cluster-6379.conf
+                port 6379
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6379.pid
+                logfile "/usr/local/redis/log/cluster_6379.log"
+                dbfilename dump-cluster-6379.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6379.conf
+                cluster-require-full-coverage no
+
+            redis 6380配置 master conf/cluster-6380.conf
+                port 6380
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6380.pid
+                logfile "/usr/local/redis/log/cluster_6380.log"
+                dbfilename dump-cluster-6380.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6380.conf
+                cluster-require-full-coverage no
+
+
+        192.168.88.130
+            redis 6381配置 master conf/cluster-6381.conf
+                port 6381
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6381.pid
+                logfile "/usr/local/redis/log/cluster_6381.log"
+                dbfilename dump-cluster-6381.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6381.conf
+                cluster-require-full-coverage no
+
+            redis 6382配置 master conf/cluster-6382.conf
+                port 6382
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6382.pid
+                logfile "/usr/local/redis/log/cluster_6382.log"
+                dbfilename dump-cluster-6382.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6382.conf
+                cluster-require-full-coverage no
+
+        192.168.88.131
+            redis 6383配置 master conf/cluster-6383.conf
+                port 6383
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6383.pid
+                logfile "/usr/local/redis/log/cluster_6383.log"
+                dbfilename dump-cluster-6383.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6383.conf
+                cluster-require-full-coverage no
+
+            redis 6384配置 master conf/cluster-6384.conf
+                port 6384
+                protected-mode no
+                daemonize yes
+                pidfile /var/run/redis_cluster_6384.pid
+                logfile "/usr/local/redis/log/cluster_6384.log"
+                dbfilename dump-cluster-6384.rdb
+                dir /usr/local/redis/data
+                cluster-enabled yes
+                cluster-config-file cluster-nodes-6384.conf
+                cluster-require-full-coverage no
+
+
+    启动redis
+        192.168.88.129
+            /usr/local/redis/bin/redis-server conf/cluster-6379.conf
+            /usr/local/redis/bin/redis-server conf/cluster-6380.conf
+
+
+        192.168.88.131
+            /usr/local/redis/bin/redis-server conf/cluster-6381.conf
+            /usr/local/redis/bin/redis-server conf/cluster-6382.conf
+
+
+        192.168.88.131
+            /usr/local/redis/bin/redis-server conf/cluster-6383.conf
+            /usr/local/redis/bin/redis-server conf/cluster-6384.conf
+
+
+    执行meet操作
+        /usr/local/redis/bin/redis-cli -p 6379 cluster meet 192.168.88.129 6380
+        /usr/local/redis/bin/redis-cli -p 6379 cluster meet 192.168.88.130 6381
+        /usr/local/redis/bin/redis-cli -p 6379 cluster meet 192.168.88.130 6382
+        /usr/local/redis/bin/redis-cli -p 6379 cluster meet 192.168.88.131 6383
+        /usr/local/redis/bin/redis-cli -p 6379 cluster meet 192.168.88.131 6384
+
+    查看节点信息
+        /usr/local/redis/bin/redis-cli -p 6379 cluster info
+        /usr/local/redis/bin/redis-cli -p 6379 cluster nodes
+
+
+    分配插槽
+        16384个插槽，需要分派到集群中
+            0 - 5460
+            5461 - 10921
+            10922 - 16383
+        新建addslots.sh
+            #!/bin/bash
+            # redis addslots
+
+            start=$1
+            end=$2
+            ip=$3
+            port=$4
+
+            for slot in `seq ${start} ${end}`
+            do
+                echo "slot: ${slot}"
+                /usr/local/redis/bin/redis-cli -h ${ip} -p ${port} cluster addslots ${slot}
+            done
+
+        chmod +x addslots.sh
+
+        ./addslots.sh 0 5460 192.168.88.129 6379
+        ./addslots.sh 5461 10921 192.168.88.130 6381
+        ./addslots.sh 10922 16383 192.168.88.131 6383
+
+    主从的配置
+        [root@localhost redis]# /usr/local/redis/bin/redis-cli -p 6379 cluster nodes
+        24585fe2cd70aa42ea09b31e3f73b8a7c47a7e4c 192.168.88.129:6380@16380 master - 0 1602034019023 4 connected
+        7c5732fd7ef06e0255583c5776b51844f6fd5b51 192.168.88.131:6383@16383 master - 0 1602034017000 1 connected 10922-16383
+        c56c55a0450b0371db304da17a652c2732c46884 192.168.88.131:6384@16384 master - 0 1602034015000 3 connected
+        36a477912896e99ae5e43c2b9ed9ca81b73939ae 192.168.88.130:6382@16382 master - 0 1602034018017 5 connected
+        d667f66db92db5c3a5521479c632f4469eab9bdd 192.168.88.129:6379@16379 myself,master - 0 1602034015000 0 connected 0-5460
+        b16fe86a3e1900dbefc1c887365b4e7db1d82bf9 192.168.88.130:6381@16381 master - 0 1602034018000 2 connected 5461-10921
+
+        执行
+        /usr/local/redis/bin/redis-cli -h 192.168.88.129 -p 6380 cluster replicate d667f66db92db5c3a5521479c632f4469eab9bdd
+        /usr/local/redis/bin/redis-cli -h 192.168.88.130 -p 6382 cluster replicate b16fe86a3e1900dbefc1c887365b4e7db1d82bf9
+        /usr/local/redis/bin/redis-cli -h 192.168.88.131 -p 6384 cluster replicate 7c5732fd7ef06e0255583c5776b51844f6fd5b51
+
+    连接测试 使用参数 -c
+        /usr/local/redis/bin/redis-cli -c -p 6379
+        
+
+官方脚本
+    1、下载ruby，安装
+        wget https://cache.ruby-lang.org/pub/ruby/2.7/ruby-2.7.2.tar.gz
+        tar xf ruby-2.7.2.tar.gz
+        cd ruby-2.7.2
+        ./configure --prefix=/usr/local/ruby
+        添加到环境变量
+
+    2、ruby gem redis
+        wget https://rubygems.org/downloads/redis-4.2.2.gem
+        gem install -l redis-4.2.2.gem
+        gem list -- check redis gem
+
+    3、创建配置文件并启动redis
+
+    4、拷贝官方提供的脚本（相当于meet 配置主从 分配插槽）
+        cp /usr/local/src/redis-5.0.9/src/redis-trib.rb /usr/local/redis/bin/
+
+    // --replicas 1 主节点有一个从节点
+    redis-trib.rb create --replicas 1 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005
+
+
+    扩容
+        所动进行meet 配置主从
+        redis-trib.rb reshared 127.0.0.1:7000
+        会提示分配的插槽数
+        对应的目标id（新增的节点）
+        是否所有 all
+
+    缩容
+        迁移槽
+        redis-trib.rb reshared --from <downNodeId> --to <otherNodeId> --slots 插槽数 127.0.0.1:7006
+
+        下线
+        redis-trib.rb del-node 127.0.0.1:7000 <downNodeId>
+
+        或者在cli中通知所有其它节点，我下线咯
+        redis-cli> cluster forget <downNodeId>
+
+
+moved异常: 在计算出当前key的hash的crc16 & 0x3fff(16383)，这会key得到对应的槽，如果槽id，不再当前连接会产生moved异常
+ask重定向: 主要在迁移数据的时候，槽的迁移，可能访问到源节点，但槽可能已经迁移到其它节点
+
+moved和ask
+    两者都是客户端重定向
+    moved：槽已经确定迁移
+    ask：槽还在迁移中
+
+smart客户端原理：追求性能
+    因为cluster方式，数据是存储到不同的redis服务上，为了追求性能
+
+    1、从集群中选一个可运行节点，使用cluster slots初始化槽和节点映射
+    2、将cluster slots的结果映射到本地，为每一个节点创建JedisPool
+    3、准备执行命令
+
+
+数据迁移
+    官方迁移工具： redis-trib.rb import
+        只能从单机迁移到集群
+        不支持在线迁移：source需要停写
+        不支持断点续传
+        单线程迁移：影响速度
+    在线迁移
+        唯品会 redis-migrate-tool
+        豌豆荚 redis-port
